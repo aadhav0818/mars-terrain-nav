@@ -22,9 +22,9 @@ def get_hillshaded_terrain(terrain, pixel_size):
     return illumination
 
 def get_hillshaded_camera_image(x_intersection_m, y_intersection_m, illumination, pixel_size):
-    x_pixels = (x_intersection_m / pixel_size).astype(int)
-    y_pixels = (y_intersection_m / pixel_size).astype(int)
     height, width = illumination.shape
+    x_pixels = (x_intersection_m / pixel_size).astype(int)
+    y_pixels = (height - 1 - y_intersection_m / pixel_size).astype(int)
     x_index = np.clip(x_pixels, 0, width-1)
     y_index = np.clip(y_pixels, 0, height-1)
     image = illumination[y_index, x_index]
