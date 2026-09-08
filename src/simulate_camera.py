@@ -35,7 +35,7 @@ def simulate_camera(terrain, camera_pos, pixel_size):
     y = point[:, :, 1]
     z = point[:, :, 2]
     x_pixels = (x / pixel_size).astype(int)
-    y_pixels = (y / pixel_size).astype(int)
+    y_pixels = (height - 1 - y / pixel_size).astype(int)
     x_index = np.clip(x_pixels, 0, width - 1)
     y_index = np.clip(y_pixels, 0, height - 1)
     terrain_z = terrain[y_index, x_index] 
@@ -62,7 +62,7 @@ def simulate_camera(terrain, camera_pos, pixel_size):
         active_rays[active_rays & ~map_bounds] = False
 
         x_pixels = (x / pixel_size).astype(int)
-        y_pixels = (y / pixel_size).astype(int)
+        y_pixels = (height - 1 - y / pixel_size).astype(int)
         x_index = np.clip(x_pixels, 0, width - 1)
         y_index = np.clip(y_pixels, 0, height - 1)
         terrain_z = terrain[y_index, x_index]
@@ -87,7 +87,7 @@ def simulate_camera(terrain, camera_pos, pixel_size):
         z = point[:, :, 2]
 
         x_pixels = (x / pixel_size).astype(int)
-        y_pixels = (y / pixel_size).astype(int)
+        y_pixels = (height - 1 - y / pixel_size).astype(int)
         x_index = np.clip(x_pixels, 0, width - 1)
         y_index = np.clip(y_pixels, 0, height - 1)
         terrain_z = terrain[y_index, x_index]
