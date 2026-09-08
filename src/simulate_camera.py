@@ -103,8 +103,10 @@ def simulate_camera(terrain, camera_pos, pixel_size):
     t_intersection = (t_low + t_high) / 2
     point = camera_pos + t_intersection[:, :, np.newaxis] * ray_world
     point_z = point[:, :, 2]
-    image = np.zeros((resolution_height, resolution_width))
-    image[collided_rays] = point_z[collided_rays]
+    point_x = point[:, :, 0]
+    point_y = point[:, :, 1]
+    # image = np.zeros((resolution_height, resolution_width))
+    # image[collided_rays] = point_z[collided_rays]
 
-    return image
+    return point_x, point_y, collided_rays
     
