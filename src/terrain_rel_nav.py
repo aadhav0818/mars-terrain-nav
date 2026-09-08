@@ -72,7 +72,7 @@ fig3, ax3 = plt.subplots()
 # Camera simulation with HiRISE imagery instead of synthetic perlin terrain
 
 images = []
-camera_pos = np.array([[1000, 200, -1500], [1000, 600, -1500], [1000, 800, -1500]])
+camera_pos = np.array([[1000, 200, -1000], [1000, 400, -1000], [1000, 600, -1000], [1000, 800, -1000], [1000, 1000, -1000], [1000, 1200, -1000], [1000, 1400, -1000]])
 
 for pos in tq.tqdm(camera_pos):
     x_intersection, y_intersection, collided_rays = simulate_camera(crop_DTM, pos, pixel_size)
@@ -92,7 +92,7 @@ animation = FuncAnimation(fig3, update, frames=len(images), interval=500)
 # FEATURE DETECTION
 
 reference_image = (illumination * 255).astype(np.uint8)
-camera_image = (images[1] * 255).astype(np.uint8)
+camera_image = (images[-2] * 255).astype(np.uint8)
 sift = cv2.SIFT_create()
 
 reference_keypoints, reference_descriptors = sift.detectAndCompute(reference_image, None)
@@ -108,13 +108,39 @@ for m,n in matches:
     if m.distance < 0.75*n.distance:
         good_matches.append(m)
 
-camera_image_display = np.flipud(camera_image)
+# RANSAC
+
+src_pts = np.float32([
+    camera_keypoints[m.queryIdx].pt
+    for m in good_matches
+]).reshape(-1, 1, 2)
+
+dst_pts = np.float32([
+    reference_keypoints[m.trainIdx].pt
+    for m in good_matches
+]).reshape(-1, 1, 2)
+
+H, mask = cv2.findHomography(
+    src_pts,
+    dst_pts,
+    cv2.RANSAC,
+    5.0
+)
+
+inlier_matches = [
+    m for m, inlier in zip(good_matches, mask.ravel())
+    if inlier
+]
+
+print("Good matches:", len(good_matches))
+print("RANSAC inliers:", len(inlier_matches))
+
 match_image = cv2.drawMatches(
     camera_image,
     camera_keypoints,
     reference_image,
     reference_keypoints,
-    good_matches,
+    inlier_matches,
     None,
     flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
 )
