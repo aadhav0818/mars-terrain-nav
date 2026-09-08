@@ -1,7 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import tqdm as tq
 from osgeo import gdal
 from simulate_camera import simulate_camera
+from hillshade import calculate_illumination, calculate_normals, get_hillshaded_terrain, get_hillshaded_camera_image
+from matplotlib.animation import FuncAnimation
+import cv2
 
 dataset = gdal.Open(r'./digital-terrain-models\DTEEC_048842_1985_048908_1985_U01.IMG')
 
@@ -55,13 +59,78 @@ ax2.set_title('Jezero Crater 2x2 km (Cropped) Digital Terrain Model')
 fig2.colorbar(img2, label='Elevation (m)') 
 fig2.show()
 
+illumination = get_hillshaded_terrain(crop_DTM, pixel_size)
+fig4, ax4 = plt.subplots()
+ax4.set_xlabel('X (m)')
+ax4.set_ylabel('Y (m)')
+ax4.set_title('Jezero Crater 2x2 km (Cropped) Hillshaded Digital Terrain Model')
+img4 = ax4.imshow(illumination, cmap='gray', extent=(x_crop_min, x_crop_max, y_crop_min, y_crop_max))
+fig4.show()
 
 fig3, ax3 = plt.subplots()
-img3 = ax3.imshow(simulate_camera(crop_DTM, np.array([1000, 1000, 500]), pixel_size), 
-                  cmap='terrain', 
-                  vmin = np.nanmin(DTM), 
-                  vmax = np.nanmax(DTM)
-                )
+
+# Camera simulation with HiRISE imagery instead of synthetic perlin terrain
+
+images = []
+camera_pos = np.array([[1000, 200, -1500], [1000, 600, -1500], [1000, 800, -1500]])
+
+for pos in tq.tqdm(camera_pos):
+    x_intersection, y_intersection, collided_rays = simulate_camera(crop_DTM, pos, pixel_size)
+    image = get_hillshaded_camera_image(x_intersection, y_intersection, illumination, pixel_size)
+    image[~collided_rays] = 0
+    images.append(image)
+
+img3 = ax3.imshow(images[0], cmap='gray')
+ax3.axis("off")
+
+def update(frame):
+    img3.set_data(images[frame])
+    return [img3]
+
+animation = FuncAnimation(fig3, update, frames=len(images), interval=500)
+
+# FEATURE DETECTION
+
+reference_image = (illumination * 255).astype(np.uint8)
+camera_image = (images[1] * 255).astype(np.uint8)
+sift = cv2.SIFT_create()
+
+reference_keypoints, reference_descriptors = sift.detectAndCompute(reference_image, None)
+camera_keypoints, camera_descriptors = sift.detectAndCompute(camera_image, None)
+
+bf = cv2.BFMatcher()
+
+matches = bf.knnMatch(camera_descriptors, reference_descriptors, k=2
+)
+
+good_matches = []
+for m,n in matches:
+    if m.distance < 0.75*n.distance:
+        good_matches.append(m)
+
+camera_image_display = np.flipud(camera_image)
+match_image = cv2.drawMatches(
+    camera_image,
+    camera_keypoints,
+    reference_image,
+    reference_keypoints,
+    good_matches,
+    None,
+    flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+)
+
+# vertical line separating the two images
+divider_x = camera_image.shape[1]
+cv2.line(
+    match_image,
+    (divider_x, 0),
+    (divider_x, match_image.shape[0]),
+    (255, 255, 255),
+    3
+)
+
+fig5, ax5 = plt.subplots()
+ax5.imshow(match_image)
+ax5.axis("off")
 
 plt.show()
-# Camera simulation with HiRISE imagery instead of synthetic perlin terrain
